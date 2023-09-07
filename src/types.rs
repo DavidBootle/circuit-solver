@@ -88,6 +88,20 @@ impl Component for Resistor {
     fn component(&self) -> &BaseComponent { &self.component }
     fn component_mut(&mut self) -> &mut BaseComponent { &mut self.component }
 }
+impl Resistor {
+    pub fn new(name: &str, resistance: f64) -> Self {
+        Self {
+            component: BaseComponent {
+                node1: None,
+                node2: None,
+                name: name.to_string(),
+                current: None,
+                voltage: None,
+            },
+            resistance: resistance,
+        }
+    }
+}
 
 pub struct Capacitor {
     pub component: BaseComponent,
