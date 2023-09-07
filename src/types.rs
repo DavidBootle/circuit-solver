@@ -111,6 +111,21 @@ impl Component for Capacitor {
     fn component(&self) -> &BaseComponent { &self.component }
     fn component_mut(&mut self) -> &mut BaseComponent { &mut self.component }
 }
+impl Capacitor {
+    pub fn new(name: &str, capacitance: f64) -> Self {
+        Self {
+            component: BaseComponent {
+                node1: None,
+                node2: None,
+                name: name.to_string(),
+                current: None,
+                voltage: None,
+            },
+            capacitance: capacitance,
+        }
+    }
+}
+
 pub struct Inductor {
     pub component: BaseComponent,
     pub inductance: f64,
@@ -118,6 +133,20 @@ pub struct Inductor {
 impl Component for Inductor {
     fn component(&self) -> &BaseComponent { &self.component }
     fn component_mut(&mut self) -> &mut BaseComponent { &mut self.component }
+}
+impl Inductor {
+    pub fn new(name: &str, inductance: f64) -> Self {
+        Self {
+            component: BaseComponent {
+                node1: None,
+                node2: None,
+                name: name.to_string(),
+                current: None,
+                voltage: None,
+            },
+            inductance: inductance,
+        }
+    }
 }
 
 pub struct VoltageSource {
@@ -183,6 +212,21 @@ impl DirectionalComponent for CurrentSource {
 impl Component for CurrentSource {
     fn component(&self) -> &BaseComponent { &self.component }
     fn component_mut(&mut self) -> &mut BaseComponent { &mut self.component }
+}
+impl CurrentSource {
+    pub fn new(name: &str, current: f64, polarity: Polarity) -> Self {
+        Self {
+            component: BaseComponent {
+                node1: None,
+                node2: None,
+                name: name.to_string(),
+                current: None,
+                voltage: None,
+            },
+            current: current,
+            polarity: polarity,
+        }
+    }
 }
 
 pub enum Polarity {
