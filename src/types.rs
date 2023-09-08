@@ -30,17 +30,66 @@ impl Circuit {
         let name = component.component().name.clone();
 
         // add the component to the circuit with it's id as the key
-        self.components.insert(name, Box::new(component));
+        self.components.insert(name.clone(), Box::new(component));
+
+        // add the new connection to the nodes
+        let connection = ConnectionItem::Component(name);
+        self.get_node_mut(node1).unwrap().add_connection(connection.clone());
+        self.get_node_mut(node2).unwrap().add_connection(connection);
+    }
+
+    pub fn get_component(&self, name: &str) -> Option<&dyn Component> {
+        // get the component from the circuit
+        let component = self.components.get(name);
+        match component {
+            Some(component) => Some(component.as_ref()),
+            None => None,
+        }
+    }
+
+    pub fn get_component_mut(&mut self, name: &str) -> Option<&mut dyn Component> {
+        // get the component from the circuit
+        let component = self.components.get_mut(name);
+        match component {
+            Some(component) => Some(component.as_mut()),
+            None => None,
+        }
+    }
+
+    pub fn get_node(&self, id: usize) -> Option<&Node> {
+        self.nodes.get(id)
+    }
+
+    pub fn get_node_mut(&mut self, id: usize) -> Option<&mut Node> {
+        self.nodes.get_mut(id)
+    }
+
+    pub fn connect(&mut self, node1: usize, node2: usize) -> Result<Wire, &str> {
+        // verify that the nodes exist
+        if node1 >= self.nodes.len() || node2 >= self.nodes.len() {
+            return Err("Node does not exist");
+        }
+        if node1 == node2 {
+            return Err("Cannot connect a node to itself");
+        }
+
+        // create a new wire
+        let wire_id = self.wires.len();
+        let wire = Wire::new(wire_id, node1, node2);
+
+        // add the new connection to the nodes
+        let connection = ConnectionItem::Wire(wire_id);
+        self.get_node_mut(node1).unwrap().add_connection(connection.clone());
+        self.get_node_mut(node2).unwrap().add_connection(connection);
+
+        return Ok(wire);
     }
 
     fn new_node(&mut self) -> usize {
         // create a new node and return a pointer to it
         let node_id = self.nodes.len();
 
-        let node = Node {
-            id: node_id,
-            voltage: None,
-        };
+        let node = Node::new(node_id);
 
         self.nodes.push(node);
 
@@ -53,21 +102,47 @@ impl Circuit {
 pub struct Node {
     pub id: usize,
     pub voltage: Option<f64>,
+    pub connected: Vec<ConnectionItem>,
+}
+impl Node {
+    pub fn new(id: usize) -> Self {
+        Self {
+            id: id,
+            voltage: None,
+            connected: Vec::new(),
+        }
+    }
+
+    pub fn add_connection(&mut self, connection: ConnectionItem) {
+        self.connected.push(connection);
+    }
+}
+
+#[derive(Clone)]
+pub enum ConnectionItem {
+    Wire(usize),
+    Component(String),
 }
 
 pub struct Wire {
     pub node1: usize,
     pub node2: usize,
+    pub id: usize,
+}
+impl Wire {
+    pub fn new(id: usize, node1: usize, node2: usize) -> Self {
+        Self {
+            node1: node1,
+            node2: node2,
+            id: id,
+        }
+    }
 }
 
 // Component Types
 pub trait Component {
     fn component(&self) -> &BaseComponent;
     fn component_mut(&mut self) -> &mut BaseComponent;
-}
-pub trait DirectionalComponent {
-    fn input_node(&self) -> Option<usize>;
-    fn output_node(&self) -> Option<usize>;
 }
 
 pub struct BaseComponent {
@@ -158,21 +233,6 @@ impl Component for VoltageSource {
     fn component(&self) -> &BaseComponent { &self.component }
     fn component_mut(&mut self) -> &mut BaseComponent { &mut self.component }
 }
-impl DirectionalComponent for VoltageSource {
-    fn input_node(&self) -> Option<usize> {
-        match self.polarity {
-            Polarity::Normal => self.component.node1,
-            Polarity::Inverted => self.component.node2,
-        }
-    }
-
-    fn output_node(&self) -> Option<usize> {
-        match self.polarity {
-            Polarity::Normal => self.component.node2,
-            Polarity::Inverted => self.component.node1
-        }
-    }
-}
 impl VoltageSource {
     pub fn new(name: &str, voltage: f64, polarity: Polarity) -> Self {
         Self {
@@ -187,27 +247,26 @@ impl VoltageSource {
             polarity: polarity,
         }
     }
-}
 
-pub struct CurrentSource {
-    pub component: BaseComponent,
-    pub current: f64,
-    pub polarity: Polarity, // if normal, current will flow from node2 to node1
-}
-impl DirectionalComponent for CurrentSource {
-    fn input_node(&self) -> Option<usize> {
+    pub fn positive_node(&self) -> Option<usize> {
         match self.polarity {
             Polarity::Normal => self.component.node1,
             Polarity::Inverted => self.component.node2,
         }
     }
 
-    fn output_node(&self) -> Option<usize> {
+    pub fn negative_node(&self) -> Option<usize> {
         match self.polarity {
             Polarity::Normal => self.component.node2,
             Polarity::Inverted => self.component.node1
         }
     }
+}
+
+pub struct CurrentSource {
+    pub component: BaseComponent,
+    pub current: f64,
+    pub polarity: Polarity, // if normal, current will flow from node2 to node1
 }
 impl Component for CurrentSource {
     fn component(&self) -> &BaseComponent { &self.component }
@@ -225,6 +284,20 @@ impl CurrentSource {
             },
             current: current,
             polarity: polarity,
+        }
+    }
+
+    pub fn input_node(&self) -> Option<usize> {
+        match self.polarity {
+            Polarity::Normal => self.component.node2,
+            Polarity::Inverted => self.component.node1,
+        }
+    }
+
+    pub fn output_node(&self) -> Option<usize> {
+        match self.polarity {
+            Polarity::Normal => self.component.node1,
+            Polarity::Inverted => self.component.node2
         }
     }
 }
